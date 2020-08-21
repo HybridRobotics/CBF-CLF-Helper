@@ -15,6 +15,10 @@ classdef CtrlAffineSys < handle
     
     methods
         function obj = CtrlAffineSys(params)
+            if nargin == 0
+                obj.params = [];
+                disp("Warning: params argument is missing.")
+            end
             obj.params = params;
             %% TODO: Add checking input constraint.
             %% TODO: Add existence of essential fields (e.g. params.weight.slack)

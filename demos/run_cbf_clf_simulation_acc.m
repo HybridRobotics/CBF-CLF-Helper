@@ -48,9 +48,8 @@ ss(1, :) = s0';
 ts(1) = t;
 for k = 1:total_k-1
     t
-    % Determine control input.
-    % dV_hat: analytic Vdot based on model.
     Fr = accSys.getFr(s);
+    % Determine control input.
     [u, slack, h, V] = controller(s, Fr);        
     us(k, :) = u';
     hs(k) = h;

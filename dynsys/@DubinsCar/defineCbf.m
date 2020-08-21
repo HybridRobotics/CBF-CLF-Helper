@@ -13,5 +13,9 @@ function cbf = defineCbf(~, params, symbolic_s)
     % Left CBF
 %     cbf = (x - xo - R_left * sin(theta))^2 + (y - yo + R_left * cos(theta))^2 - (R_left + d)^2;
     % Right CBF
-    cbf = (x - xo + R_right * sin(theta))^2 + (y - yo - R_right * cos(theta))^2 - (R_right + d)^2;
+%     cbf = (x - xo + R_right * sin(theta))^2 + (y - yo - R_right * cos(theta))^2 - (R_right + d)^2;
+
+    distance = (x - xo)^2 + (y - yo)^2 - d^2;
+    derivDistance = 2*(x-xo)*v*cos(theta) + 2*(y-yo)*sin(theta);
+    cbf = derivDistance + params.cbf_gamma0 * distance; 
 end
