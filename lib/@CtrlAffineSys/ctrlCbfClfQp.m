@@ -1,28 +1,37 @@
 function [u, slack, B, V] = ctrlCbfClfQp(obj, s, u_ref, with_slack)
-    if isempty(obj.clf)
-        error('CLF is not defined so ctrlCbfClfQp cannot be used. Create a class function defineClf and set up clf with symbolic expression.');
-    end
-    if isempty(obj.cbf)
-        error('CBF is not defined so ctrlCbfClfQp cannot be used. Create a class function defineCbf and set up cbf with symbolic expression.');
-    end
-    
     if nargin < 3
         u_ref = zeros(obj.udim, 1);
     end
     if nargin < 4
         with_slack = 1;
     end
-    
+
     if size(u_ref, 1) ~= obj.udim
         error("Wrong size of u_ref, it should be (udim, 1) array.");
     end                
-    B = obj.cbf(s);
-    LfB = obj.lf_cbf(s);
-    LgB = obj.lg_cbf(s);
-    V = obj.clf(s);
-    LfV = obj.lf_clf(s);
-    LgV = obj.lg_clf(s);
-
+    
+    if obj.use_clf_table
+        [V, LfV, LgV, ~] = evalFuncFromTable(s, obj.grid, obj.clf_table, obj.f, obj.g, obj.dclf_table)
+    else
+        if isempty(obj.clf)
+            error('CLF is not defined so ctrlCbfClfQp cannot be used. Create a class function defineClf and set up clf with symbolic expression.');
+        end
+        V = obj.clf(s);
+        LfV = obj.lf_clf(s);
+        LgV = obj.lg_clf(s);
+    end
+    
+    if obj.use_cbf_table
+        [B, LfB, LgB, ~] = evalFuncFromTable(s, obj.grid, obj.cbf_table, obj.f, obj.g, obj.dcbf_table);        
+    else
+        if isempty(obj.cbf)
+            error('CBF is not defined so ctrlCbfClfQp cannot be used. Create a class function defineCbf and set up cbf with symbolic expression.');
+        end
+        B = obj.cbf(s);
+        LfB = obj.lf_cbf(s);
+        LgB = obj.lg_cbf(s);
+    end
+        
     %% Constraints : A[u; slack] <= b
     %% TODO: generalize the code to higher relative degree.
     if with_slack
