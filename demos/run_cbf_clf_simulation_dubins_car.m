@@ -12,7 +12,6 @@ params.yo = 4;
 % Obstacle radius
 params.d = 2;
 params.cbf_gamma0 = 1;
-
 % Desired target point
 params.xd = 12;
 params.yd = 0;
