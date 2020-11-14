@@ -2,7 +2,25 @@ dt = 0.02;
 sim_t = 20;
 s0 = [0;5;0];
 
-load_params_dubins_car;
+params.v = 1; % velocity
+params.u_max = 3; % max yaw rate (left)
+params.u_min = -3; % min yaw rate (right)
+
+% Obstacle position
+params.xo = 5;
+params.yo = 4;
+% Obstacle radius
+params.d = 2;
+params.cbf_gamma0 = 1;
+% Desired target point
+params.xd = 12;
+params.yd = 0;
+
+params.clf.rate = 0.5;
+params.weight.slack = 10;
+
+params.cbf.rate = 1;
+
 dubins = DubinsCar(params);
 
 odeFun = @dubins.dynamics;

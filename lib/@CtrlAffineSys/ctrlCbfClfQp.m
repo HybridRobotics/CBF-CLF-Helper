@@ -1,40 +1,54 @@
-function [u, slack, B, V] = ctrlCbfClfQp(obj, s, u_ref, with_slack)
+%% Author: Jason Choi (jason.choi@berkeley.edu)
+function [u, slack, B, V, feas] = ctrlCbfClfQp(obj, s, u_ref, with_slack, s_ref, verbose)
+    %% Implementation of vanilla CBF-CLF-QP
+    % Inputs:   s: state
+    %           u_ref: reference control input
+    %           with_slack: flag for relaxing the clf constraint(1: relax, 0: hard-constraint)
+    %           s_ref: reference state (target state for stabilization.)
+    %           verbose: flag for logging (1: print log, 0: run silently)
+    % Outputs:  u: control input as a solution of the CBF-CLF-QP
+    %           slack: slack variable for relaxation. (empty list when with_slack=0)
+    %           B: Value of the CBF at current state.
+    %           V: Value of the CLF at current state.
+    %           feas: 1 if QP is feasible, 0 if infeasible. (Note: even
+    %           when qp is infeasible, u is determined from quadprog.)
+    if isempty(obj.clf)
+        error('CLF is not defined so ctrlCbfClfQp cannot be used. Create a class function [defineClf] and set up clf with symbolic expression.');
+    end
+    if isempty(obj.cbf)
+        error('CBF is not defined so ctrlCbfClfQp cannot be used. Create a class function [defineCbf] and set up cbf with symbolic expression.');
+    end
+        
     if nargin < 3
         u_ref = zeros(obj.udim, 1);
     end
     if nargin < 4
         with_slack = 1;
     end
+    if nargin < 5 || isempty(s_ref)
+        % If s_ref is given, CLF is calculated based on the error.
+        s_ref = zeros(obj.sdim, 1);
+    end
+    if nargin < 6
+        % Run QP without log in default condition.
+        verbose = 0;
+    end
 
     if size(u_ref, 1) ~= obj.udim
         error("Wrong size of u_ref, it should be (udim, 1) array.");
     end                
-    
-    if obj.use_clf_table
-        [V, LfV, LgV, ~] = evalFuncFromTable(s, obj.grid, obj.clf_table, obj.f, obj.g, obj.dclf_table)
-    else
-        if isempty(obj.clf)
-            error('CLF is not defined so ctrlCbfClfQp cannot be used. Create a class function defineClf and set up clf with symbolic expression.');
-        end
-        V = obj.clf(s);
-        LfV = obj.lf_clf(s);
-        LgV = obj.lg_clf(s);
-    end
-    
-    if obj.use_cbf_table
-        [B, LfB, LgB, ~] = evalFuncFromTable(s, obj.grid, obj.cbf_table, obj.f, obj.g, obj.dcbf_table);        
-    else
-        if isempty(obj.cbf)
-            error('CBF is not defined so ctrlCbfClfQp cannot be used. Create a class function defineCbf and set up cbf with symbolic expression.');
-        end
-        B = obj.cbf(s);
-        LfB = obj.lf_cbf(s);
-        LgB = obj.lg_cbf(s);
-    end
+            
+    V = obj.clf(s-s_ref);
+    LfV = obj.lf_clf(s-s_ref);
+    LgV = obj.lg_clf(s-s_ref);
+
+    B = obj.cbf(s);
+    LfB = obj.lf_cbf(s);
+    LgB = obj.lg_cbf(s);
         
-    %% Constraints : A[u; slack] <= b
     %% TODO: generalize the code to higher relative degree.
     if with_slack
+        %% Constraints : A[u; slack] <= b
         A = [LgV, -1;
         -LgB, 0];
         b = [-LfV - obj.params.clf.rate * V;
@@ -61,6 +75,7 @@ function [u, slack, B, V] = ctrlCbfClfQp(obj, s, u_ref, with_slack)
             end
         end        
     else
+        %% Constraints : A * u <= b
         A = [LgV; -LgB];
         b = [-LfV - obj.params.clf.rate * V;
             LfB + obj.params.cbf.rate * B];                
@@ -101,24 +116,35 @@ function [u, slack, B, V] = ctrlCbfClfQp(obj, s, u_ref, with_slack)
         weight_input = eye(obj.udim);
     end
     
+    if verbose
+        options =  optimset('Display','notify');
+    else
+        options =  optimset('Display','off');
+    end
     if with_slack         
         % cost = 0.5 [u' slack] H [u; slack] + f [u; slack]
         H = [weight_input, zeros(obj.udim, 1);
             zeros(1, obj.udim), obj.params.weight.slack];
         f_ = [-weight_input * u_ref; 0];
-        [u_slack, ~, exitflag, ~] = quadprog(H, f_, A, b);
+        [u_slack, ~, exitflag, ~] = quadprog(H, f_, A, b, [], [], [], [], [], options);
         if exitflag == -2
+            feas = 0;
             disp("Infeasible QP. CBF constraint is conflicting with input constraints.");
+        else
+            feas = 1;
         end
-
         u = u_slack(1:obj.udim);
         slack = u_slack(end);
     else
+        % cost = 0.5 u' H u + f u
         H = weight_input;
         f_ = -weight_input * u_ref;
-        [u, ~, exitflag, ~] = quadprog(H, f_, A, b);
+        [u, ~, exitflag, ~] = quadprog(H, f_, A, b, [], [], [], [], [], options);
         if exitflag == -2
+            feas = 0;
             disp("Infeasible QP. CBF constraint is conflicting with input constraints.");
+        else
+            feas = 1;
         end
         slack = [];
     end

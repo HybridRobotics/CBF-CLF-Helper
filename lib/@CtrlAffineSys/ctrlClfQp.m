@@ -1,18 +1,39 @@
-function [u, slack, V, feas] = ctrlClfQp(obj, s, u_ref, with_slack, s_ref)
+%% Author: Jason Choi (jason.choi@berkeley.edu)
+function [u, slack, V, feas] = ctrlClfQp(obj, s, u_ref, with_slack, s_ref, verbose)
+    %% Implementation of vanilla CLF-QP
+    % Inputs:   s: state
+    %           u_ref: reference control input
+    %           with_slack: flag for relaxing (1: relax, 0: hard-constraint)
+    %           s_ref: reference state (target state for stabilization.)
+    %           verbose: flag for logging (1: print log, 0: run silently)
+    % Outputs:  u: control input as a solution of the CLF-QP
+    %           slack: slack variable for relaxation. (empty list when with_slack=0)
+    %           V: Value of the CLF at current state.
+    %           feas: 1 if QP is feasible, 0 if infeasible. (Note: even
+    %           when qp is infeasible, u is determined from quadprog.)
+
     if isempty(obj.clf)
-        error('CLF is not defined so ctrlCbfClfQp cannot be used. Create a class function defineClf and set up clf with symbolic expression.');
+        error('CLF is not defined so ctrlCbfClfQp cannot be used. Create a class function [defineClf] and set up clf with symbolic expression.');
     end
 
     if nargin < 3 || isempty(u_ref)
+        % If u_ref is given, CLF-QP minimizes the norm of u-u_ref        
+        % Default reference control input is u.
         u_ref = zeros(obj.udim, 1);
     end
     if nargin < 4
+        % Relaxing is activated in default condition.
         with_slack = 1;
     end
     if nargin < 5 || isempty(s_ref)
+        % If s_ref is given, CLF is calculated based on the error.
         s_ref = zeros(obj.sdim, 1);
     end
-
+    if nargin < 6
+        % Run QP without log in default condition.
+        verbose = 0;
+    end
+    
     if size(u_ref, 1) ~= obj.udim
         error("Wrong size of u_ref, it should be (udim, 1) array.");
     end
@@ -86,8 +107,12 @@ function [u, slack, V, feas] = ctrlClfQp(obj, s, u_ref, with_slack, s_ref)
         weight_input = eye(obj.udim);
     end
     
+    if verbose
+        options =  optimset('Display','notify');
+    else
+        options =  optimset('Display','off');
+    end
     
-    options =  optimset('Display','off');
     if with_slack         
         % cost = 0.5 [u' slack] H [u; slack] + f [u; slack]
         H = [weight_input, zeros(obj.udim, 1);
