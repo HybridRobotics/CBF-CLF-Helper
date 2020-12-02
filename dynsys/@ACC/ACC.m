@@ -5,8 +5,7 @@
 classdef ACC < CtrlAffineSys    
     methods        
         function obj = ACC(params)
-            obj = obj@CtrlAffineSys(params);
-            
+            obj = obj@CtrlAffineSys(params);            
         end
         function Fr = getFr(obj, s)
             v = s(2);
