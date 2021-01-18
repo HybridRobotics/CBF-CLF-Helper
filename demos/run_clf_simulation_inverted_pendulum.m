@@ -21,7 +21,7 @@ params.Kd=5;
 params.clf.rate = 3;
 params.weight.slack = 100000;
 
-s0 = [0.76; 0.05];
+x0 = [0.76; 0.05];
 
 ip_sys = InvertedPendulum(params);
 
@@ -30,28 +30,28 @@ controller = @ip_sys.ctrlClfQp;
 odeSolver = @ode45;
 
 total_k = ceil(sim_t / dt);
-s = s0;
+x = x0;
 t = 0;   
 % initialize traces.
-ss = zeros(total_k, ip_sys.sdim);
+xs = zeros(total_k, ip_sys.xdim);
 ts = zeros(total_k, 1);
 us = zeros(total_k-1, 1);
 Vs = zeros(total_k-1, 1);
-ss(1, :) = s0';
+xs(1, :) = x0';
 ts(1) = t;
 for k = 1:total_k-1
     t
     % Determine control input.
     % dV_hat: analytic Vdot based on model.
-    [u, slack, V] = controller(s);        
+    [u, slack, V] = controller(x);        
     us(k, :) = u';
     Vs(k) = V;
 
     % Run one time step propagation.
-    [ts_temp, ss_temp] = odeSolver(@(t, s) odeFun(t, s, u), [t t+dt], s);
-    s = ss_temp(end, :)';
+    [ts_temp, xs_temp] = odeSolver(@(t, s) odeFun(t, s, u), [t t+dt], x);
+    x = xs_temp(end, :)';
 
-    ss(k+1, :) = s';
+    xs(k+1, :) = x';
     ts(k+1) = ts_temp(end);
     t = t + dt;
 end
@@ -59,11 +59,11 @@ end
 figure;
 title('Inverted Pendulum: CLF-QP States');
 subplot(2, 1, 1);
-plot(ts, 180 * ss(:, 1)/pi);
+plot(ts, 180 * xs(:, 1)/pi);
 xlabel("t (sec)"); ylabel("theta (deg)");
 
 subplot(2, 1, 2);
-plot(ts, 180 * ss(:, 2)/pi);
+plot(ts, 180 * xs(:, 2)/pi);
 xlabel("t (sec)"); ylabel("dtheta (deg/s)");
 
 figure;

@@ -1,7 +1,7 @@
 %% Author: Jason Choi (jason.choi@berkeley.edu)
-function [u, B, feas, comp_time] = ctrlCbfQp(obj, s, u_ref, verbose)
+function [u, B, feas, comp_time] = ctrlCbfQp(obj, x, u_ref, verbose)
     %% Implementation of vanilla CBF-QP
-    % Inputs:   s: state
+    % Inputs:   x: state
     %           u_ref: reference control input
     %           verbose: flag for logging (1: print log, 0: run silently)
     % Outputs:  u: control input as a solution of the CBF-CLF-QP
@@ -26,9 +26,9 @@ function [u, B, feas, comp_time] = ctrlCbfQp(obj, s, u_ref, verbose)
     end                
             
     tstart = tic;
-    B = obj.cbf(s);
-    LfB = obj.lf_cbf(s);
-    LgB = obj.lg_cbf(s);
+    B = obj.cbf(x);
+    LfB = obj.lf_cbf(x);
+    LgB = obj.lg_cbf(x);
         
     %% Constraints : A * u <= b
     % CBF constraint.

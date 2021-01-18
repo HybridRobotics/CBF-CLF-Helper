@@ -1,6 +1,6 @@
-function [s, f, g] = defineSystem(~, params)
-    syms x v z % states
-    s = [x; v; z];
+function [x, f, g] = defineSystem(~, params)
+    syms p v z % states
+    x = [p; v; z];
 
     f0 = params.f0;
     f1 = params.f1;

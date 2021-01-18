@@ -1,7 +1,7 @@
 %% Author: Jason Choi (jason.choi@berkeley.edu)
-function [u, slack, V, feas, comp_time] = ctrlClfQp(obj, s, u_ref, with_slack, verbose)
+function [u, slack, V, feas, comp_time] = ctrlClfQp(obj, x, u_ref, with_slack, verbose)
     %% Implementation of vanilla CLF-QP
-    % Inputs:   s: state
+    % Inputs:   x: state
     %           u_ref: reference control input
     %           with_slack: flag for relaxing (1: relax, 0: hard CLF constraint)
     %           verbose: flag for logging (1: print log, 0: run silently)
@@ -35,10 +35,10 @@ function [u, slack, V, feas, comp_time] = ctrlClfQp(obj, s, u_ref, with_slack, v
     end
     
     tstart = tic;
-    V = obj.clf(s);
+    V = obj.clf(x);
     % Lie derivatives of the CLF.
-    LfV = obj.lf_clf(s);
-    LgV = obj.lg_clf(s);
+    LfV = obj.lf_clf(x);
+    LgV = obj.lg_clf(x);
 
     %% Constraints : A[u; slack] <= b
     if with_slack

@@ -2,7 +2,7 @@ clear all; close all;
 
 dt = 0.02;
 sim_t = 20;
-s0 = [0; 20; 100];
+x0 = [0; 20; 100];
 
 %% Parameters are from 
 % Aaron Ames et al. Control Barrier Function based Quadratic Programs 
@@ -36,41 +36,41 @@ controller = @accSys.ctrlCbfClfQp;
 odeSolver = @ode45;
 
 total_k = ceil(sim_t / dt);
-s = s0;
+x = x0;
 t = 0;   
 % initialize traces.
-ss = zeros(total_k, 3);
+xs = zeros(total_k, 3);
 ts = zeros(total_k, 1);
 us = zeros(total_k-1, 1);
 hs = zeros(total_k-1, 1);
 Vs = zeros(total_k-1, 1);
-ss(1, :) = s0';
+xs(1, :) = x0';
 ts(1) = t;
 for k = 1:total_k-1
     t
-    Fr = accSys.getFr(s);
+    Fr = accSys.getFr(x);
     % Determine control input.
-    [u, slack, h, V] = controller(s, Fr);        
+    [u, slack, h, V] = controller(x, Fr);        
     us(k, :) = u';
     hs(k) = h;
     Vs(k) = V;
 
     % Run one time step propagation.
-    [ts_temp, ss_temp] = odeSolver(@(t, s) odeFun(t, s, u), [t t+dt], s);
-    s = ss_temp(end, :)';
+    [ts_temp, xs_temp] = odeSolver(@(t, s) odeFun(t, s, u), [t t+dt], x);
+    x = xs_temp(end, :)';
 
-    ss(k+1, :) = s';
+    xs(k+1, :) = x';
     ts(k+1) = ts_temp(end);
     t = t + dt;
 end
 
-plot_results(ts, ss, us, hs, Vs, params)
+plot_results(ts, xs, us, hs, Vs, params)
 
 
-function plot_results(ts, ss, us, hs, Vs, params)
+function plot_results(ts, xs, us, hs, Vs, params)
     figure;
     subplot(4,1,1);
-    plot(ts, ss(:, 2));
+    plot(ts, xs(:, 2));
     xlabel("t(s)");
     ylabel("v (m/s)");
     

@@ -1,7 +1,7 @@
 %% Author: Jason Choi (jason.choi@berkeley.edu)
-function [u, slack, B, V, feas, comp_time] = ctrlCbfClfQp(obj, s, u_ref, with_slack, verbose)
+function [u, slack, B, V, feas, comp_time] = ctrlCbfClfQp(obj, x, u_ref, with_slack, verbose)
     %% Implementation of vanilla CBF-CLF-QP
-    % Inputs:   s: state
+    % Inputs:   x: state
     %           u_ref: reference control input
     %           with_slack: flag for relaxing the clf constraint(1: relax, 0: hard-constraint)
     %           verbose: flag for logging (1: print log, 0: run silently)
@@ -36,13 +36,13 @@ function [u, slack, B, V, feas, comp_time] = ctrlCbfClfQp(obj, s, u_ref, with_sl
     end                
 
     tstart = tic;
-    V = obj.clf(s);
-    LfV = obj.lf_clf(s);
-    LgV = obj.lg_clf(s);
+    V = obj.clf(x);
+    LfV = obj.lf_clf(x);
+    LgV = obj.lg_clf(x);
 
-    B = obj.cbf(s);
-    LfB = obj.lf_cbf(s);
-    LgB = obj.lg_cbf(s);
+    B = obj.cbf(x);
+    LfB = obj.lf_cbf(x);
+    LgB = obj.lg_cbf(x);
         
     %% Constraints: A[u; slack] <= b
     if with_slack
