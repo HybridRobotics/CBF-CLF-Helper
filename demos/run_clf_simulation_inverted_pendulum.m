@@ -57,6 +57,7 @@ for k = 1:total_k-1
 end
 
 figure;
+title('Inverted Pendulum: CLF-QP States');
 subplot(2, 1, 1);
 plot(ts, 180 * ss(:, 1)/pi);
 xlabel("t (sec)"); ylabel("theta (deg)");
@@ -64,7 +65,6 @@ xlabel("t (sec)"); ylabel("theta (deg)");
 subplot(2, 1, 2);
 plot(ts, 180 * ss(:, 2)/pi);
 xlabel("t (sec)"); ylabel("dtheta (deg/s)");
-title('Inverted Pendulum: CLF-QP States');
 
 figure;
 plot(ts(1:end-1), us); hold on;

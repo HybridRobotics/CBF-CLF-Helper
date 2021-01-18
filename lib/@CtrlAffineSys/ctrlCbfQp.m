@@ -1,5 +1,5 @@
 %% Author: Jason Choi (jason.choi@berkeley.edu)
-function [u, B, feas] = ctrlCbfQp(obj, s, u_ref, verbose)
+function [u, B, feas, comp_time] = ctrlCbfQp(obj, s, u_ref, verbose)
     %% Implementation of vanilla CBF-QP
     % Inputs:   s: state
     %           u_ref: reference control input
@@ -8,8 +8,9 @@ function [u, B, feas] = ctrlCbfQp(obj, s, u_ref, verbose)
     %           B: Value of the CBF at current state.
     %           feas: 1 if QP is feasible, 0 if infeasible. (Note: even
     %           when qp is infeasible, u is determined from quadprog.)
+    %           compt_time: computation time to run the solver.
     if isempty(obj.cbf)
-        error('CBF is not defined so ctrlCbfClfQp cannot be used. Create a class function [defineCbf] and set up cbf with symbolic expression.');
+        error('CBF is not defined so ctrlCbfQp cannot be used. Create a class function [defineCbf] and set up cbf with symbolic expression.');
     end
         
     if nargin < 3
@@ -24,15 +25,16 @@ function [u, B, feas] = ctrlCbfQp(obj, s, u_ref, verbose)
         error("Wrong size of u_ref, it should be (udim, 1) array.");
     end                
             
+    tstart = tic;
     B = obj.cbf(s);
     LfB = obj.lf_cbf(s);
     LgB = obj.lg_cbf(s);
         
     %% Constraints : A * u <= b
-    %% TODO: generalize the code to higher relative degree.
+    % CBF constraint.
     A = [-LgB];
     b = [LfB + obj.params.cbf.rate * B];                
-    %% Add input constraints if u_max or u_min exists.
+    % Add input constraints if u_max or u_min exists.
     if isfield(obj.params, 'u_max')
         A = [A; ones(obj.udim)];
         if size(obj.params.u_max, 1) == 1
@@ -84,4 +86,5 @@ function [u, B, feas] = ctrlCbfQp(obj, s, u_ref, verbose)
     else
         feas = 1;
     end
+    comp_time = toc(tstart);
 end

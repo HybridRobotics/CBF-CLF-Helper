@@ -1,10 +1,9 @@
 %% Author: Jason Choi (jason.choi@berkeley.edu)
-function [u, slack, B, V, feas] = ctrlCbfClfQp(obj, s, u_ref, with_slack, s_ref, verbose)
+function [u, slack, B, V, feas, comp_time] = ctrlCbfClfQp(obj, s, u_ref, with_slack, verbose)
     %% Implementation of vanilla CBF-CLF-QP
     % Inputs:   s: state
     %           u_ref: reference control input
     %           with_slack: flag for relaxing the clf constraint(1: relax, 0: hard-constraint)
-    %           s_ref: reference state (target state for stabilization.)
     %           verbose: flag for logging (1: print log, 0: run silently)
     % Outputs:  u: control input as a solution of the CBF-CLF-QP
     %           slack: slack variable for relaxation. (empty list when with_slack=0)
@@ -12,6 +11,7 @@ function [u, slack, B, V, feas] = ctrlCbfClfQp(obj, s, u_ref, with_slack, s_ref,
     %           V: Value of the CLF at current state.
     %           feas: 1 if QP is feasible, 0 if infeasible. (Note: even
     %           when qp is infeasible, u is determined from quadprog.)
+    %           comp_time: computation time to run the solver.
     if isempty(obj.clf)
         error('CLF is not defined so ctrlCbfClfQp cannot be used. Create a class function [defineClf] and set up clf with symbolic expression.');
     end
@@ -25,11 +25,8 @@ function [u, slack, B, V, feas] = ctrlCbfClfQp(obj, s, u_ref, with_slack, s_ref,
     if nargin < 4
         with_slack = 1;
     end
-    if nargin < 5 || isempty(s_ref)
-        % If s_ref is given, CLF is calculated based on the error.
-        s_ref = zeros(obj.sdim, 1);
-    end
-    if nargin < 6
+
+    if nargin < 5
         % Run QP without log in default condition.
         verbose = 0;
     end
@@ -37,23 +34,24 @@ function [u, slack, B, V, feas] = ctrlCbfClfQp(obj, s, u_ref, with_slack, s_ref,
     if size(u_ref, 1) ~= obj.udim
         error("Wrong size of u_ref, it should be (udim, 1) array.");
     end                
-            
-    V = obj.clf(s-s_ref);
-    LfV = obj.lf_clf(s-s_ref);
-    LgV = obj.lg_clf(s-s_ref);
+
+    tstart = tic;
+    V = obj.clf(s);
+    LfV = obj.lf_clf(s);
+    LgV = obj.lg_clf(s);
 
     B = obj.cbf(s);
     LfB = obj.lf_cbf(s);
     LgB = obj.lg_cbf(s);
         
-    %% TODO: generalize the code to higher relative degree.
+    %% Constraints: A[u; slack] <= b
     if with_slack
-        %% Constraints : A[u; slack] <= b
+        % CLF and CBF constraints.
         A = [LgV, -1;
         -LgB, 0];
         b = [-LfV - obj.params.clf.rate * V;
             LfB + obj.params.cbf.rate * B];                
-        %% Add input constraints if u_max or u_min exists.
+        % Add input constraints if u_max or u_min exists.
         if isfield(obj.params, 'u_max')
             A = [A; ones(obj.udim), zeros(obj.udim, 1);];
             if size(obj.params.u_max, 1) == 1
@@ -75,11 +73,11 @@ function [u, slack, B, V, feas] = ctrlCbfClfQp(obj, s, u_ref, with_slack, s_ref,
             end
         end        
     else
-        %% Constraints : A * u <= b
+        % CLF and CBF constraints.
         A = [LgV; -LgB];
         b = [-LfV - obj.params.clf.rate * V;
             LfB + obj.params.cbf.rate * B];                
-        %% Add input constraints if u_max or u_min exists.
+        % Add input constraints if u_max or u_min exists.
         if isfield(obj.params, 'u_max')
             A = [A; ones(obj.udim)];
             if size(obj.params.u_max, 1) == 1
@@ -101,7 +99,6 @@ function [u, slack, B, V, feas] = ctrlCbfClfQp(obj, s, u_ref, with_slack, s_ref,
             end
         end
     end
-
 
     %% Cost
     if isfield(obj.params.weight, 'input')
@@ -148,4 +145,5 @@ function [u, slack, B, V, feas] = ctrlCbfClfQp(obj, s, u_ref, with_slack, s_ref,
         end
         slack = [];
     end
+    comp_time = toc(tstart);
 end

@@ -3,17 +3,17 @@ function [u, slack, V, feas, comp_time] = ctrlClfQp(obj, s, u_ref, with_slack, v
     %% Implementation of vanilla CLF-QP
     % Inputs:   s: state
     %           u_ref: reference control input
-    %           with_slack: flag for relaxing (1: relax, 0: hard-constraint)
+    %           with_slack: flag for relaxing (1: relax, 0: hard CLF constraint)
     %           verbose: flag for logging (1: print log, 0: run silently)
     % Outputs:  u: control input as a solution of the CLF-QP
     %           slack: slack variable for relaxation. (empty list when with_slack=0)
-    %           V: Value of the CLF at current state.
+    %           V: Value of the CLF at the current state.
     %           feas: 1 if QP is feasible, 0 if infeasible. (Note: even
     %           when qp is infeasible, u is determined from quadprog.)
-    %           comp_time: computation time to run the solver (including GP inference).
+    %           comp_time: computation time to run the solver.
 
     if isempty(obj.clf)
-        error('CLF is not defined so ctrlCbfClfQp cannot be used. Create a class function [defineClf] and set up clf with symbolic expression.');
+        error('CLF is not defined so ctrlClfQp cannot be used. Create a class function [defineClf] and set up clf with symbolic expression.');
     end
 
     if nargin < 3 || isempty(u_ref)
@@ -36,15 +36,16 @@ function [u, slack, V, feas, comp_time] = ctrlClfQp(obj, s, u_ref, with_slack, v
     
     tstart = tic;
     V = obj.clf(s);
+    % Lie derivatives of the CLF.
     LfV = obj.lf_clf(s);
     LgV = obj.lg_clf(s);
 
     %% Constraints : A[u; slack] <= b
-    %% TODO: generalize the code to higher relative degree.
     if with_slack
+        % CLF constraint.
         A = [LgV, -1];
         b = -LfV-obj.params.clf.rate*V;                
-        %% Add input constraints if u_max or u_min exists.
+        % Add input constraints if u_max or u_min exists.
         if isfield(obj.params, 'u_max')
             A = [A; ones(obj.udim), zeros(obj.udim, 1);];
             if size(obj.params.u_max, 1) == 1
@@ -66,9 +67,10 @@ function [u, slack, V, feas, comp_time] = ctrlClfQp(obj, s, u_ref, with_slack, v
             end
         end        
     else
+        % CLF constraint.
         A = LgV;
         b = -LfV-obj.params.clf.rate*V;                
-        %% Add input constraints if u_max or u_min exists.
+        % Add input constraints if u_max or u_min exists.
         if isfield(obj.params, 'u_max')
             A = [A; ones(obj.udim)];
             if size(obj.params.u_max, 1) == 1
@@ -116,10 +118,10 @@ function [u, slack, V, feas, comp_time] = ctrlClfQp(obj, s, u_ref, with_slack, v
             zeros(1, obj.udim), obj.params.weight.slack];
         f_ = [-weight_input * u_ref; 0];
         [u_slack, ~, exitflag, ~] = quadprog(H, f_, A, b, [], [], [], [], [], options);
-        if exitflag == -2
+        if exitflag == -2            
             feas = 0;
-            disp("Infeasible QP. CLF constraint is conflicting with input constraints.");
-            % Making up best-effort solution.
+            disp("Infeasible QP. Numerical error might have occured.");
+            % Making up best-effort heuristic solution.
             u = zeros(obj.udim, 1);
             for i = 1:obj.udim
                 u(i) = obj.params.u_min * (LgV(i) > 0) + obj.params.u_max * (LgV(i) <= 0);
@@ -136,7 +138,7 @@ function [u, slack, V, feas, comp_time] = ctrlClfQp(obj, s, u_ref, with_slack, v
         if exitflag == -2
             feas = 0;
             disp("Infeasible QP. CLF constraint is conflicting with input constraints.");
-            % Making up best-effort solution.
+            % Making up best-effort heuristic solution.
             u = zeros(obj.udim, 1);
             for i = 1:obj.udim
                 u(i) = obj.params.u_min * (LgV(i) > 0) + obj.params.u_max * (LgV(i) <= 0);
@@ -148,4 +150,3 @@ function [u, slack, V, feas, comp_time] = ctrlClfQp(obj, s, u_ref, with_slack, v
     end
     comp_time = toc(tstart);
 end
-
