@@ -1,5 +1,9 @@
 # CBF-CLF-Helper
-Matlab Interface for Control Barrier Function (CBF) and Control Lyapunov Function (CLF) based control methods.
+Matlab Interface for Control Barrier Function (CBF) and Control Lyapunov Function (CLF) based control methods. The library is designed to let users easily implement safety controller based on CBFs and CLFs with Matlab. We provide:
+- An easy interface for construction and simulation of nonlinear control-affine systems.
+- Safety controllers including CLF-QP, CBF-QP, and CBF-CLF-QP as built-in functions.
+- Demonstrations on toy examples.
+
 
 ### Requirements
 - Matlab
