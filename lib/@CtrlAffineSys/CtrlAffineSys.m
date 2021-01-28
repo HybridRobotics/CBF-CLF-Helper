@@ -3,7 +3,7 @@ classdef CtrlAffineSys < handle
     %% Control-Affine Dynamic System Class.
     properties
         % State dimension
-        sdim 
+        xdim 
         % Control input dimension
         udim
         % Model parameters as structure object, specific to the system.
@@ -41,18 +41,18 @@ classdef CtrlAffineSys < handle
                             
             %% TODO: Add checking input constraint.
             %% TODO: Add existence of essential fields (e.g. params.weight.slack)
-            [s, f, g] = obj.defineSystem(params);
-            clf = obj.defineClf(params, s);
-            cbf = obj.defineCbf(params, s);
-            obj.initSys(s, f, g, cbf, clf);
+            [x, f, g] = obj.defineSystem(params);
+            clf = obj.defineClf(params, x);
+            cbf = obj.defineCbf(params, x);
+            obj.initSys(x, f, g, cbf, clf);
         end
         
         %% Defining class function handles.
-        function [s, f, g] = defineSystem(obj, params)
-            % Outputs: s: symbolic state vector
-            %          f: drift term, expressed symbolically wrt s.
-            %          g: control vector fields, expressed symbolically wrt s.
-            s = []; f = []; g = [];         
+        function [x, f, g] = defineSystem(obj, params)
+            % Outputs: x: symbolic state vector
+            %          f: drift term, expressed symbolically wrt x.
+            %          g: control vector fields, expressed symbolically wrt x.
+            x = []; f = []; g = [];         
         end
         
         function clf = defineClf(obj, params, symbolic_state)
@@ -67,10 +67,10 @@ classdef CtrlAffineSys < handle
             cbf = [];
         end
                 
-        function ds = dynamics(obj, t, s, u)
-            % Inputs: t: time, s: state, u: control input
-            % Output: ds: \dot(s)
-            ds = obj.f(s) + obj.g(s) * u;
+        function dx = dynamics(obj, t, x, u)
+            % Inputs: t: time, x: state, u: control input
+            % Output: dx: \dot(x)
+            dx = obj.f(x) + obj.g(x) * u;
         end
     end
 end

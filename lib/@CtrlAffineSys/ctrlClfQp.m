@@ -1,19 +1,19 @@
 %% Author: Jason Choi (jason.choi@berkeley.edu)
-function [u, slack, V, feas] = ctrlClfQp(obj, s, u_ref, with_slack, s_ref, verbose)
+function [u, slack, V, feas, comp_time] = ctrlClfQp(obj, x, u_ref, with_slack, verbose)
     %% Implementation of vanilla CLF-QP
-    % Inputs:   s: state
+    % Inputs:   x: state
     %           u_ref: reference control input
-    %           with_slack: flag for relaxing (1: relax, 0: hard-constraint)
-    %           s_ref: reference state (target state for stabilization.)
+    %           with_slack: flag for relaxing (1: relax, 0: hard CLF constraint)
     %           verbose: flag for logging (1: print log, 0: run silently)
     % Outputs:  u: control input as a solution of the CLF-QP
     %           slack: slack variable for relaxation. (empty list when with_slack=0)
-    %           V: Value of the CLF at current state.
+    %           V: Value of the CLF at the current state.
     %           feas: 1 if QP is feasible, 0 if infeasible. (Note: even
     %           when qp is infeasible, u is determined from quadprog.)
+    %           comp_time: computation time to run the solver.
 
     if isempty(obj.clf)
-        error('CLF is not defined so ctrlCbfClfQp cannot be used. Create a class function [defineClf] and set up clf with symbolic expression.');
+        error('CLF is not defined so ctrlClfQp cannot be used. Create a class function [defineClf] and set up clf with symbolic expression.');
     end
 
     if nargin < 3 || isempty(u_ref)
@@ -25,11 +25,7 @@ function [u, slack, V, feas] = ctrlClfQp(obj, s, u_ref, with_slack, s_ref, verbo
         % Relaxing is activated in default condition.
         with_slack = 1;
     end
-    if nargin < 5 || isempty(s_ref)
-        % If s_ref is given, CLF is calculated based on the error.
-        s_ref = zeros(obj.sdim, 1);
-    end
-    if nargin < 6
+    if nargin < 5
         % Run QP without log in default condition.
         verbose = 0;
     end
@@ -38,16 +34,18 @@ function [u, slack, V, feas] = ctrlClfQp(obj, s, u_ref, with_slack, s_ref, verbo
         error("Wrong size of u_ref, it should be (udim, 1) array.");
     end
     
-    V = obj.clf(s-s_ref);
-    LfV = obj.lf_clf(s-s_ref);
-    LgV = obj.lg_clf(s-s_ref);
+    tstart = tic;
+    V = obj.clf(x);
+    % Lie derivatives of the CLF.
+    LfV = obj.lf_clf(x);
+    LgV = obj.lg_clf(x);
 
     %% Constraints : A[u; slack] <= b
-    %% TODO: generalize the code to higher relative degree.
     if with_slack
+        % CLF constraint.
         A = [LgV, -1];
         b = -LfV-obj.params.clf.rate*V;                
-        %% Add input constraints if u_max or u_min exists.
+        % Add input constraints if u_max or u_min exists.
         if isfield(obj.params, 'u_max')
             A = [A; ones(obj.udim), zeros(obj.udim, 1);];
             if size(obj.params.u_max, 1) == 1
@@ -69,9 +67,10 @@ function [u, slack, V, feas] = ctrlClfQp(obj, s, u_ref, with_slack, s_ref, verbo
             end
         end        
     else
+        % CLF constraint.
         A = LgV;
         b = -LfV-obj.params.clf.rate*V;                
-        %% Add input constraints if u_max or u_min exists.
+        % Add input constraints if u_max or u_min exists.
         if isfield(obj.params, 'u_max')
             A = [A; ones(obj.udim)];
             if size(obj.params.u_max, 1) == 1
@@ -108,9 +107,9 @@ function [u, slack, V, feas] = ctrlClfQp(obj, s, u_ref, with_slack, s_ref, verbo
     end
     
     if verbose
-        options =  optimset('Display','notify');
+        options =  optimoptions('quadprog', 'ConstraintTolerance', 1e-6, 'StepTolerance', 1e-12, 'Display','iter');
     else
-        options =  optimset('Display','off');
+        options =  optimoptions('quadprog', 'ConstraintTolerance', 1e-6, 'Display','off');
     end
     
     if with_slack         
@@ -119,13 +118,18 @@ function [u, slack, V, feas] = ctrlClfQp(obj, s, u_ref, with_slack, s_ref, verbo
             zeros(1, obj.udim), obj.params.weight.slack];
         f_ = [-weight_input * u_ref; 0];
         [u_slack, ~, exitflag, ~] = quadprog(H, f_, A, b, [], [], [], [], [], options);
-        if exitflag == -2
+        if exitflag == -2            
             feas = 0;
-            disp("Infeasible QP. CBF constraint is conflicting with input constraints.");
+            disp("Infeasible QP. Numerical error might have occured.");
+            % Making up best-effort heuristic solution.
+            u = zeros(obj.udim, 1);
+            for i = 1:obj.udim
+                u(i) = obj.params.u_min * (LgV(i) > 0) + obj.params.u_max * (LgV(i) <= 0);
+            end
         else
             feas = 1;
+            u = u_slack(1:obj.udim);
         end
-        u = u_slack(1:obj.udim);
         slack = u_slack(end);
     else
         H = weight_input;
@@ -133,11 +137,16 @@ function [u, slack, V, feas] = ctrlClfQp(obj, s, u_ref, with_slack, s_ref, verbo
         [u, ~, exitflag, ~] = quadprog(H, f_, A, b, [], [], [], [], [], options);
         if exitflag == -2
             feas = 0;
-            disp("Infeasible QP. CBF constraint is conflicting with input constraints.");
+            disp("Infeasible QP. CLF constraint is conflicting with input constraints.");
+            % Making up best-effort heuristic solution.
+            u = zeros(obj.udim, 1);
+            for i = 1:obj.udim
+                u(i) = obj.params.u_min * (LgV(i) > 0) + obj.params.u_max * (LgV(i) <= 0);
+            end
         else
             feas = 1;
         end
         slack = [];
     end
+    comp_time = toc(tstart);
 end
-
