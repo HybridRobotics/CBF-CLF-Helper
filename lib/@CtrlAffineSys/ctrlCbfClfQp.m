@@ -53,7 +53,7 @@ function [u, slack, B, V, feas, comp_time] = ctrlCbfClfQp(obj, x, u_ref, with_sl
             LfB + obj.params.cbf.rate * B];                
         % Add input constraints if u_max or u_min exists.
         if isfield(obj.params, 'u_max')
-            A = [A; ones(obj.udim), zeros(obj.udim, 1);];
+            A = [A; eye(obj.udim), zeros(obj.udim, 1);];
             if size(obj.params.u_max, 1) == 1
                 b = [b; obj.params.u_max * ones(obj.udim, 1)];
             elseif size(obj.params.u_max, 1) == obj.udim
@@ -63,7 +63,7 @@ function [u, slack, B, V, feas, comp_time] = ctrlCbfClfQp(obj, x, u_ref, with_sl
             end
         end
         if isfield(obj.params, 'u_min')
-            A = [A; -ones(obj.udim), zeros(obj.udim, 1);];
+            A = [A; -eye(obj.udim), zeros(obj.udim, 1);];
             if size(obj.params.u_min, 1) == 1
                 b = [b; -obj.params.u_min * ones(obj.udim, 1)];
             elseif size(obj.params.u_min, 1) == obj.udim
@@ -79,7 +79,7 @@ function [u, slack, B, V, feas, comp_time] = ctrlCbfClfQp(obj, x, u_ref, with_sl
             LfB + obj.params.cbf.rate * B];                
         % Add input constraints if u_max or u_min exists.
         if isfield(obj.params, 'u_max')
-            A = [A; ones(obj.udim)];
+            A = [A; eye(obj.udim)];
             if size(obj.params.u_max, 1) == 1
                 b = [b; obj.params.u_max * ones(obj.udim, 1)];
             elseif size(obj.params.u_max, 1) == obj.udim
@@ -89,7 +89,7 @@ function [u, slack, B, V, feas, comp_time] = ctrlCbfClfQp(obj, x, u_ref, with_sl
             end
         end
         if isfield(obj.params, 'u_min')
-            A = [A; -ones(obj.udim)];
+            A = [A; -eye(obj.udim)];
             if size(obj.params.u_min, 1) == 1
                 b = [b; -obj.params.u_min * ones(obj.udim, 1)];
             elseif size(obj.params.u_min, 1) == obj.udim
